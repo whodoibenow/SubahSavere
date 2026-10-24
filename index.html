@@ -421,7 +421,7 @@
       color: var(--label-2);
     }
 
-    /* ---------- In-App Instant Reader View (Square Box Type) ---------- */
+    /* ---------- In-App Instant Reader View + Gestures ---------- */
     .reader-root {
       position: fixed;
       inset: 0;
@@ -432,10 +432,15 @@
       transform: translateX(100%);
       transition: transform 0.26s cubic-bezier(0.32, 0.72, 0, 1);
       pointer-events: none;
+      will-change: transform;
+      box-shadow: -8px 0 24px rgba(0, 0, 0, 0.18);
     }
     .reader-root.open {
       transform: translateX(0);
       pointer-events: auto;
+    }
+    .reader-root.dragging {
+      transition: none !important;
     }
     .reader-bar {
       flex: none;
@@ -444,30 +449,51 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
       background: var(--bar);
       -webkit-backdrop-filter: saturate(180%) blur(20px);
       backdrop-filter: saturate(180%) blur(20px);
       border-bottom: var(--hair) solid var(--separator);
     }
     .reader-btn {
-      height: 36px;
+      height: 34px;
       padding: 0 10px;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      font-size: 15px;
+      gap: 5px;
+      font-size: 14px;
       font-weight: 600;
       color: var(--accent);
       background: var(--fill);
+      flex: none;
     }
-    .reader-btn:active { opacity: 0.6; }
+    .reader-btn:active:not(:disabled) { opacity: 0.6; }
+    .reader-btn:disabled { opacity: 0.3; cursor: default; }
+    .reader-center {
+      flex: 1;
+      min-width: 0;
+      text-align: center;
+    }
     .reader-source {
+      display: block;
       font-size: 14px;
       font-weight: 700;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .reader-pos {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--label-2);
+      font-variant-numeric: tabular-nums;
+    }
+    .reader-nav-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: none;
     }
     .reader-issue-tabs {
       flex: none;
@@ -475,7 +501,9 @@
       overflow-x: auto;
       background: var(--bg);
       border-bottom: var(--hair) solid var(--separator);
+      scrollbar-width: none;
     }
+    .reader-issue-tabs::-webkit-scrollbar { display: none; }
     .reader-issue-tabs:empty { display: none; }
     .issue-tab {
       flex: 1 0 auto;
@@ -496,17 +524,46 @@
       box-shadow: inset 0 -2px 0 var(--accent);
     }
     .reader-scroll {
+      position: relative;
       flex: 1;
       overflow-y: auto;
+      overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
-      padding: 24px 18px calc(48px + env(safe-area-inset-bottom));
+      padding: 24px 18px calc(56px + env(safe-area-inset-bottom));
       user-select: text;
       -webkit-user-select: text;
+      touch-action: pan-y;
     }
     .reader-article {
       max-width: 600px;
       margin: 0 auto;
+      will-change: transform, opacity;
     }
+    .reader-article.snapping {
+      transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.22s ease;
+    }
+
+    /* Square Edge Swipe Hint Pill */
+    .gesture-badge {
+      position: fixed;
+      top: 50%;
+      z-index: 95;
+      transform: translateY(-50%);
+      padding: 10px 12px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: var(--hero);
+      color: #FFFFFF;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.12s ease;
+    }
+    .gesture-badge.left { left: 0; }
+    .gesture-badge.right { right: 0; }
+    .gesture-badge.visible { opacity: 0.94; }
+
     .reader-kicker {
       font-size: 12px;
       font-weight: 700;
@@ -565,6 +622,17 @@
     .reader-content blockquote {
       padding-left: 14px;
       border-left: 3px solid var(--accent);
+      color: var(--label-2);
+    }
+
+    .reader-footer-nav {
+      margin-top: 32px;
+      padding-top: 16px;
+      border-top: var(--hair) solid var(--separator);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
       color: var(--label-2);
     }
 
@@ -719,23 +787,38 @@
       <span class="sync-pill" id="sync-status">Ready</span>
     </div>
     <ul class="list" id="list"></ul>
-    <p class="footnote">Cached issues open instantly inside Today and work offline. Others warm up and open their website directly.</p>
+    <p class="footnote">Cached issues open instantly inside Today and work offline. Swipe right to go back, or swipe left for the next article.</p>
 
   </div>
 
-  <!-- Instant In-App Reader (Option 1) -->
+  <!-- Instant In-App Reader with Swipe Gestures -->
   <aside class="reader-root" id="reader" aria-hidden="true">
     <div class="reader-bar">
       <button class="reader-btn" id="reader-back" type="button">← Today</button>
-      <span class="reader-source" id="reader-source">Briefing</span>
-      <a class="reader-btn" id="reader-ext" href="#" target="_blank" rel="noopener">Website ↗</a>
+      <div class="reader-center">
+        <span class="reader-source" id="reader-source">Briefing</span>
+        <span class="reader-pos" id="reader-pos">Swipe ← / →</span>
+      </div>
+      <div class="reader-nav-group">
+        <button class="reader-btn" id="reader-prev" type="button" aria-label="Previous article">‹</button>
+        <button class="reader-btn" id="reader-next" type="button" aria-label="Next article">›</button>
+        <a class="reader-btn" id="reader-ext" href="#" target="_blank" rel="noopener" aria-label="Open website">↗</a>
+      </div>
     </div>
     <div class="reader-issue-tabs" id="reader-tabs"></div>
+
+    <div class="gesture-badge left" id="badge-left">← Back</div>
+    <div class="gesture-badge right" id="badge-right">Next →</div>
+
     <div class="reader-scroll" id="reader-scroll">
-      <article class="reader-article">
+      <article class="reader-article" id="reader-article">
         <div class="reader-kicker" id="reader-kicker">TODAY'S EDITION</div>
         <h1 class="reader-headline" id="reader-headline"></h1>
         <div class="reader-content" id="reader-content"></div>
+        <div class="reader-footer-nav">
+          <span>Swipe right to go back</span>
+          <span>Swipe left for next →</span>
+        </div>
       </article>
     </div>
   </aside>
@@ -773,8 +856,6 @@
 
       /* ---------------------------------------------------------
          Briefings.
-         - rss: used by live fallback if ./briefings.json is missing.
-         - Any channel without cached issues opens its url directly.
          --------------------------------------------------------- */
       const CHANNELS = [
         {
@@ -848,8 +929,11 @@
         theme: $('#theme-toggle'), themeMeta: $('#theme-meta'),
         sheet: $('#sheet'), scrim: $('#scrim'), confirm: $('#sheet-confirm'), cancel: $('#sheet-cancel'),
         reader: $('#reader'), readerBack: $('#reader-back'), readerSource: $('#reader-source'),
+        readerPos: $('#reader-pos'), readerPrev: $('#reader-prev'), readerNext: $('#reader-next'),
         readerExt: $('#reader-ext'), readerTabs: $('#reader-tabs'), readerScroll: $('#reader-scroll'),
-        readerKicker: $('#reader-kicker'), readerHeadline: $('#reader-headline'), readerContent: $('#reader-content')
+        readerArticle: $('#reader-article'), readerKicker: $('#reader-kicker'),
+        readerHeadline: $('#reader-headline'), readerContent: $('#reader-content'),
+        badgeLeft: $('#badge-left'), badgeRight: $('#badge-right')
       };
 
       /* ---------- Storage: read state + offline issue cache ---------- */
@@ -863,6 +947,10 @@
       let read = loadRead();
       let issueCache = loadIssueCache();
       let lastCount = null;
+
+      /* Active Reader State for Swipe Navigation */
+      let activeChannel = null;
+      let activeIssueIdx = 0;
 
       function loadRead() {
         try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { return {}; }
@@ -925,7 +1013,6 @@
         tagEl.textContent = ch.tag;
         descEl.textContent = ch.subtitle;
 
-        /* Warm up external connection on touchstart if no cached issue exists */
         link.addEventListener('touchstart', () => {
           if (!hasUsableIssue(ch.id)) warmUpUrl(ch.url);
         }, { passive: true });
@@ -933,9 +1020,6 @@
           if (!hasUsableIssue(ch.id)) warmUpUrl(ch.url);
         });
 
-        /* Tap handler:
-           - If cached issue exists -> open Instant Reader inside Today (0ms, never leave app).
-           - Otherwise -> let native <a href> open website immediately. */
         link.addEventListener('click', (e) => {
           read[ch.id] = true;
           saveRead();
@@ -943,7 +1027,7 @@
 
           if (hasUsableIssue(ch.id)) {
             e.preventDefault();
-            openReader(ch);
+            openReader(ch, 0);
           }
         });
 
@@ -1005,50 +1089,262 @@
         lastCount = n;
       }
 
-      /* ---------- Instant In-App Reader ---------- */
-      function openReader(ch) {
-        const entry = issueCache[ch.id];
-        if (!entry || !entry.items || !entry.items.length) return;
+      /* ---------- Instant In-App Reader & Issue Navigation ---------- */
+      function getItems(ch) {
+        if (!ch || !issueCache[ch.id] || !Array.isArray(issueCache[ch.id].items)) return [];
+        return issueCache[ch.id].items.slice(0, 4);
+      }
 
-        el.readerSource.textContent = ch.name;
-        el.readerTabs.innerHTML = '';
-
-        if (entry.items.length > 1) {
-          entry.items.slice(0, 4).forEach((item, idx) => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'issue-tab' + (idx === 0 ? ' active' : '');
-            btn.textContent = item.title || ('Issue ' + (idx + 1));
-            btn.addEventListener('click', () => {
-              el.readerTabs.querySelectorAll('.issue-tab').forEach((b, i) => b.classList.toggle('active', i === idx));
-              renderReaderIssue(ch, item);
-            });
-            el.readerTabs.appendChild(btn);
-          });
+      function getNextCachedChannel(currentId) {
+        const startIdx = CHANNELS.findIndex((c) => c.id === currentId);
+        if (startIdx === -1) return null;
+        for (let i = startIdx + 1; i < CHANNELS.length; i++) {
+          if (hasUsableIssue(CHANNELS[i].id)) return CHANNELS[i];
         }
+        return null;
+      }
 
-        renderReaderIssue(ch, entry.items[0]);
+      function getPrevCachedChannel(currentId) {
+        const startIdx = CHANNELS.findIndex((c) => c.id === currentId);
+        if (startIdx <= 0) return null;
+        for (let i = startIdx - 1; i >= 0; i--) {
+          if (hasUsableIssue(CHANNELS[i].id)) return CHANNELS[i];
+        }
+        return null;
+      }
+
+      function openReader(ch, initialIdx = 0) {
+        const items = getItems(ch);
+        if (!items.length) return;
+
+        activeChannel = ch;
+        activeIssueIdx = Math.max(0, Math.min(initialIdx, items.length - 1));
+
+        read[ch.id] = true;
+        saveRead();
+        render();
+
+        buildReaderTabs(ch, items);
+        renderReaderIssue(ch, activeIssueIdx, false);
+
+        el.reader.style.transform = '';
         el.reader.classList.add('open');
         el.reader.setAttribute('aria-hidden', 'false');
         document.body.classList.add('reader-lock');
       }
 
-      function renderReaderIssue(ch, item) {
+      function buildReaderTabs(ch, items) {
+        el.readerTabs.innerHTML = '';
+        if (items.length > 1) {
+          items.forEach((item, idx) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'issue-tab' + (idx === activeIssueIdx ? ' active' : '');
+            btn.textContent = item.title || ('Issue ' + (idx + 1));
+            btn.addEventListener('click', () => {
+              goToIssue(idx);
+            });
+            el.readerTabs.appendChild(btn);
+          });
+        }
+      }
+
+      function syncTabHighlight() {
+        const tabs = el.readerTabs.querySelectorAll('.issue-tab');
+        tabs.forEach((b, i) => {
+          const isCurrent = i === activeIssueIdx;
+          b.classList.toggle('active', isCurrent);
+          if (isCurrent && b.scrollIntoView) {
+            b.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+          }
+        });
+      }
+
+      function renderReaderIssue(ch, idx, animateSlideDir) {
+        const items = getItems(ch);
+        const item = items[idx];
+        if (!item) return;
+
+        activeIssueIdx = idx;
+        el.readerSource.textContent = ch.name;
+        el.readerPos.textContent = 'Article ' + (idx + 1) + ' of ' + items.length;
         el.readerScroll.scrollTop = 0;
         el.readerExt.href = item.link || ch.url;
-        const pub = item.pubDate ? new Date(item.pubDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Latest Issue';
+
+        const pub = item.pubDate
+          ? new Date(item.pubDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+          : 'Latest Issue';
         el.readerKicker.textContent = ch.name + ' · ' + pub;
         el.readerHeadline.textContent = item.title || ch.name;
         el.readerContent.innerHTML = sanitizeHtml(item.content || '');
+
+        syncTabHighlight();
+
+        const hasNext = (idx < items.length - 1) || Boolean(getNextCachedChannel(ch.id));
+        el.readerPrev.disabled = false; /* Always enabled: goes to prev issue or back to Today */
+        el.readerNext.disabled = !hasNext;
+
+        if (animateSlideDir) {
+          const offset = animateSlideDir === 'next' ? 40 : -40;
+          el.readerArticle.classList.remove('snapping');
+          el.readerArticle.style.transform = 'translateX(' + offset + 'px)';
+          el.readerArticle.style.opacity = '0.25';
+          void el.readerArticle.offsetWidth;
+          el.readerArticle.classList.add('snapping');
+          el.readerArticle.style.transform = 'translateX(0)';
+          el.readerArticle.style.opacity = '1';
+        } else {
+          el.readerArticle.style.transform = '';
+          el.readerArticle.style.opacity = '';
+        }
+      }
+
+      function goToIssue(targetIdx, dir) {
+        if (!activeChannel) return;
+        const items = getItems(activeChannel);
+        if (targetIdx >= 0 && targetIdx < items.length) {
+          renderReaderIssue(activeChannel, targetIdx, dir || (targetIdx > activeIssueIdx ? 'next' : 'prev'));
+        }
+      }
+
+      function stepNextArticle() {
+        if (!activeChannel) return;
+        const items = getItems(activeChannel);
+        if (activeIssueIdx < items.length - 1) {
+          goToIssue(activeIssueIdx + 1, 'next');
+          return;
+        }
+        const nextCh = getNextCachedChannel(activeChannel.id);
+        if (nextCh) {
+          openReader(nextCh, 0);
+          renderReaderIssue(nextCh, 0, 'next');
+        }
+      }
+
+      function stepPrevOrBack() {
+        if (!activeChannel) return;
+        if (activeIssueIdx > 0) {
+          goToIssue(activeIssueIdx - 1, 'prev');
+          return;
+        }
+        closeReader();
       }
 
       function closeReader() {
+        el.reader.classList.remove('dragging');
+        el.reader.style.transform = '';
         el.reader.classList.remove('open');
         el.reader.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('reader-lock');
       }
 
       el.readerBack.addEventListener('click', closeReader);
+      el.readerPrev.addEventListener('click', stepPrevOrBack);
+      el.readerNext.addEventListener('click', stepNextArticle);
+
+      /* ---------- Touch Swipe Gesture Engine ----------
+         - Edge swipe right (starting < 36px from left edge) OR swipe right on Article 1 -> closes Reader back to Today
+         - Swipe right on Article 2..N -> goes to previous article
+         - Swipe left anywhere -> goes to next article (or next cached publication)
+      --------------------------------------------------- */
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchDeltaX = 0;
+      let gestureLock = null; /* 'horizontal' | 'vertical' | null */
+      let isEdgeBackGesture = false;
+
+      el.reader.addEventListener('touchstart', (e) => {
+        if (!el.reader.classList.contains('open') || e.touches.length !== 1) return;
+        const t = e.touches[0];
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+        touchDeltaX = 0;
+        gestureLock = null;
+        isEdgeBackGesture = (touchStartX <= 36) || (activeIssueIdx === 0);
+        el.readerArticle.classList.remove('snapping');
+      }, { passive: true });
+
+      el.reader.addEventListener('touchmove', (e) => {
+        if (!el.reader.classList.contains('open') || e.touches.length !== 1) return;
+        const t = e.touches[0];
+        const dx = t.clientX - touchStartX;
+        const dy = t.clientY - touchStartY;
+
+        if (!gestureLock) {
+          if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+          gestureLock = (Math.abs(dx) > Math.abs(dy) * 1.25) ? 'horizontal' : 'vertical';
+        }
+
+        if (gestureLock !== 'horizontal') return;
+        touchDeltaX = dx;
+
+        /* Dragging Right (Back to Today or Previous Article) */
+        if (dx > 0) {
+          if (isEdgeBackGesture) {
+            el.reader.classList.add('dragging');
+            el.reader.style.transform = 'translateX(' + dx + 'px)';
+            el.badgeLeft.textContent = '← Today';
+          } else {
+            el.readerArticle.style.transform = 'translateX(' + (dx * 0.42) + 'px)';
+            el.badgeLeft.textContent = '← Prev (' + activeIssueIdx + ')';
+          }
+          el.badgeLeft.classList.toggle('visible', dx > 55);
+          el.badgeRight.classList.remove('visible');
+        }
+        /* Dragging Left (Next Article or Next Briefing) */
+        else if (dx < 0) {
+          const items = getItems(activeChannel);
+          const nextCh = getNextCachedChannel(activeChannel ? activeChannel.id : '');
+          const canAdvance = activeIssueIdx < items.length - 1 || Boolean(nextCh);
+
+          const pull = canAdvance ? dx * 0.42 : dx * 0.14;
+          el.readerArticle.style.transform = 'translateX(' + pull + 'px)';
+
+          if (canAdvance) {
+            el.badgeRight.textContent = (activeIssueIdx < items.length - 1)
+              ? 'Next (' + (activeIssueIdx + 2) + '/' + items.length + ') →'
+              : (nextCh.mark + ' →');
+            el.badgeRight.classList.toggle('visible', Math.abs(dx) > 55);
+          }
+          el.badgeLeft.classList.remove('visible');
+        }
+      }, { passive: true });
+
+      function endGesture() {
+        el.badgeLeft.classList.remove('visible');
+        el.badgeRight.classList.remove('visible');
+
+        if (gestureLock !== 'horizontal') return;
+        const threshold = 68;
+
+        if (touchDeltaX > threshold) {
+          if (isEdgeBackGesture) {
+            closeReader();
+          } else {
+            el.readerArticle.classList.add('snapping');
+            el.readerArticle.style.transform = '';
+            goToIssue(activeIssueIdx - 1, 'prev');
+          }
+        } else if (touchDeltaX < -threshold) {
+          el.reader.classList.remove('dragging');
+          el.reader.style.transform = '';
+          el.readerArticle.classList.add('snapping');
+          el.readerArticle.style.transform = '';
+          stepNextArticle();
+        } else {
+          /* Cancelled swipe -> snap back smoothly */
+          el.reader.classList.remove('dragging');
+          el.reader.style.transform = '';
+          el.readerArticle.classList.add('snapping');
+          el.readerArticle.style.transform = '';
+        }
+
+        gestureLock = null;
+        touchDeltaX = 0;
+      }
+
+      el.reader.addEventListener('touchend', endGesture, { passive: true });
+      el.reader.addEventListener('touchcancel', endGesture, { passive: true });
 
       function sanitizeHtml(raw) {
         const doc = new DOMParser().parseFromString(raw, 'text/html');
@@ -1067,7 +1363,6 @@
 
       /* ---------- Background Sync: 1) ./briefings.json -> 2) Live RSS Fallback ---------- */
       async function syncBriefings() {
-        /* Step 1: Try fetching ./briefings.json generated by the morning scheduled job */
         try {
           const res = await fetch('./briefings.json?t=' + Date.now(), { cache: 'no-store' });
           if (res.ok) {
@@ -1081,7 +1376,6 @@
           }
         } catch (e) {}
 
-        /* Step 2: Graceful fallback if ./briefings.json isn't deployed yet */
         await Promise.allSettled(CHANNELS.map(async (ch) => {
           if (!ch.rss) return;
           try {
@@ -1136,6 +1430,9 @@
         if (e.key === 'Escape') {
           if (el.sheet.classList.contains('open')) closeSheet();
           else if (el.reader.classList.contains('open')) closeReader();
+        } else if (el.reader.classList.contains('open')) {
+          if (e.key === 'ArrowRight') stepNextArticle();
+          else if (e.key === 'ArrowLeft') stepPrevOrBack();
         }
       });
 
