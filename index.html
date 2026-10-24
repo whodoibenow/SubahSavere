@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" class="boot">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+  <!-- iOS Standalone PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Today">
+  <meta name="theme-color" id="theme-meta" content="#FFFFFF">
+
+  <!-- Connection Warm-Up (DNS + TLS Preconnect for Fallback Sites) -->
+  <link rel="preconnect" href="https://www.morningbrew.com" crossorigin>
+  <link rel="preconnect" href="https://filtercoffee.substack.com" crossorigin>
+  <link rel="preconnect" href="https://the-ken.com" crossorigin>
+  <link rel="preconnect" href="https://finimize.com" crossorigin>
+  <link rel="preconnect" href="https://www.therundown.ai" crossorigin>
+  <link rel="dns-prefetch" href="https://www.morningbrew.com">
+  <link rel="dns-prefetch" href="https://filtercoffee.substack.com">
+  <link rel="dns-prefetch" href="https://the-ken.com">
+  <link rel="dns-prefetch" href="https://finimize.com">
+  <link rel="dns-prefetch" href="https://www.therundown.ai">
+
+  <link id="apple-icon" rel="apple-touch-icon">
+  <link id="favicon" rel="icon">
+
+  <title>Today</title>
+
+  <script>
+    /* Restore the saved theme before first paint so nothing flashes. */
+    (function () {
+      try {
+        if (localStorage.getItem('today_theme') === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <style>
+    /* ==========================================================
+       TODAY: iOS-style, every corner square ("box type").
+       border-radius is forced to 0 on every element (see reset).
+       ========================================================== */
+
+    :root {
+      color-scheme: light;
+
+      /* Surfaces */
+      --bg:        #F2F2F7;   /* grouped page background */
+      --masthead:  #FFFFFF;   /* title area              */
+      --surface:   #FFFFFF;   /* list cells              */
+      --press:     #E5E5EA;   /* cell highlight          */
+      --hero:      #1C1C1E;   /* progress block          */
+
+      /* Text */
+      --label:     #000000;
+      --label-2:   #6C6C70;
+
+      /* Lines and fills */
+      --separator: #D1D1D6;
+      --fill:      rgba(120, 120, 128, 0.12);
+      --track:     rgba(255, 255, 255, 0.16);
+
+      /* Tints */
+      --accent:    #007AFF;
+      --danger:    #FF3B30;
+      --ok:        #34C759;
+
+      /* Materials */
+      --bar:       rgba(249, 249, 249, 0.84);
+      --sheet:     rgba(255, 255, 255, 0.97);
+      --scrim:     rgba(0, 0, 0, 0.32);
+      --thumb:     #FFFFFF;
+      --thumb-shadow: 0 1px 4px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.05);
+
+      --hair: 1px;
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Roboto, "Segoe UI", system-ui, sans-serif;
+    }
+
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+
+      --bg:        #000000;
+      --masthead:  #000000;
+      --surface:   #1C1C1E;
+      --press:     #2C2C2E;
+      --hero:      #1C1C1E;
+
+      --label:     #FFFFFF;
+      --label-2:   #98989D;
+
+      --separator: #38383A;
+      --fill:      rgba(120, 120, 128, 0.24);
+
+      --accent:    #0A84FF;
+      --danger:    #FF453A;
+      --ok:        #30D158;
+
+      --bar:       rgba(28, 28, 30, 0.84);
+      --sheet:     rgba(44, 44, 46, 0.97);
+      --scrim:     rgba(0, 0, 0, 0.56);
+      --thumb:     #636366;
+      --thumb-shadow: none;
+    }
+
+    @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+      :root { --hair: 0.5px; }
+    }
+
+    /* Smooth cross-fade while the theme changes */
+    .switching, .switching *, .switching *::before, .switching *::after {
+      transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, fill 0.3s ease, stroke 0.3s ease;
+    }
+    /* No transitions on first paint */
+    .boot *, .boot *::before, .boot *::after { transition: none !important; }
+
+    /* ---------- Reset: everything is a rectangle ---------- */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      border-radius: 0;
+    }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      background: var(--bg);
+    }
+
+    body {
+      font-family: var(--font);
+      font-size: 17px;
+      line-height: 1.29;
+      color: var(--label);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+      min-height: 100vh;
+      padding-bottom: calc(112px + env(safe-area-inset-bottom));
+    }
+
+    body.reader-lock { overflow: hidden; }
+
+    a { color: inherit; text-decoration: none; }
+    ul { list-style: none; }
+    button {
+      -webkit-appearance: none;
+      appearance: none;
+      background: none;
+      border: 0;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+    }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .page { max-width: 640px; margin: 0 auto; }
+
+    /* ---------- Compact bar (shows once the large title scrolls away) ---------- */
+    .navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 40;
+      height: calc(44px + env(safe-area-inset-top));
+      padding-top: env(safe-area-inset-top);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bar);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: var(--hair) solid var(--separator);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .navbar.show { opacity: 1; }
+    .navbar-title { font-size: 17px; font-weight: 600; }
+    .navbar-count {
+      position: absolute;
+      right: 16px;
+      bottom: 0;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      font-size: 15px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--label-2);
+    }
+
+    /* ---------- Masthead ---------- */
+    .masthead {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      padding: calc(env(safe-area-inset-top) + 20px) 16px 14px;
+      background: var(--masthead);
+    }
+    .date {
+      font-size: 15px;
+      line-height: 20px;
+      font-weight: 600;
+      color: var(--label-2);
+    }
+    .masthead h1 {
+      font-size: 34px;
+      line-height: 41px;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+
+    /* Light / dark switch: a square segmented control */
+    .theme-toggle {
+      position: relative;
+      flex: none;
+      width: 76px;
+      height: 36px;
+      margin-bottom: 3px;
+      background: var(--fill);
+      color: var(--label-2);
+    }
+    .theme-toggle .thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: calc(50% - 2px);
+      height: calc(100% - 4px);
+      background: var(--thumb);
+      box-shadow: var(--thumb-shadow);
+      transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    :root[data-theme="dark"] .theme-toggle .thumb { transform: translateX(100%); }
+    .theme-toggle svg {
+      position: absolute;
+      top: 9px;
+      width: 18px;
+      height: 18px;
+      transition: color 0.2s ease;
+    }
+    .theme-toggle .i-sun  { left: 10px; }
+    .theme-toggle .i-moon { left: 48px; }
+    :root:not([data-theme="dark"]) .theme-toggle .i-sun,
+    :root[data-theme="dark"] .theme-toggle .i-moon { color: var(--label); }
+
+    /* ---------- Progress block ---------- */
+    .hero {
+      padding: 20px 16px;
+      background: var(--hero);
+      color: #FFFFFF;
+    }
+    .hero-top {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .hero-count { display: flex; align-items: baseline; }
+    .hero-num {
+      display: inline-block;
+      transform-origin: 0 100%;
+      font-size: 64px;
+      line-height: 64px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      font-variant-numeric: tabular-nums;
+    }
+    .hero-num.bump { animation: bump 0.32s ease; }
+    .hero-of {
+      margin-left: 6px;
+      font-size: 26px;
+      line-height: 1;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.5);
+      font-variant-numeric: tabular-nums;
+    }
+    .hero-meta { text-align: right; padding-bottom: 4px; }
+    .hero-meta span { display: block; }
+    .hero-label { font-size: 13px; line-height: 18px; color: rgba(255, 255, 255, 0.6); }
+    .hero-status { font-size: 17px; line-height: 22px; font-weight: 600; }
+    .hero-bar {
+      display: grid;
+      grid-template-columns: repeat(var(--n, 5), 1fr);
+      gap: 4px;
+      margin-top: 18px;
+    }
+    .hero-bar span {
+      display: block;
+      height: 12px;
+      background: var(--track);
+      transition: background-color 0.3s ease;
+    }
+    .hero-bar span.on { background: var(--cd); }
+
+    /* ---------- List ---------- */
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 22px 16px 8px;
+    }
+    .section-title {
+      font-size: 13px;
+      line-height: 18px;
+      font-weight: 600;
+      color: var(--label-2);
+    }
+    .sync-pill {
+      font-size: 12px;
+      line-height: 16px;
+      font-weight: 600;
+      color: var(--label-2);
+      font-variant-numeric: tabular-nums;
+    }
+    .list {
+      background: var(--surface);
+      border-top: var(--hair) solid var(--separator);
+      border-bottom: var(--hair) solid var(--separator);
+    }
+    .row {
+      position: relative;
+      display: flex;
+      align-items: stretch;
+      background: var(--surface);
+      transition: background-color 0.3s ease;
+      animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+      animation-delay: calc(60ms + var(--i) * 45ms);
+    }
+    .row + .row::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 78px;
+      right: 0;
+      height: var(--hair);
+      background: var(--separator);
+    }
+    .row:active { background: var(--press); transition-duration: 0s; }
+
+    .row-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+    }
+    .row-main:focus-visible { outline-offset: -2px; }
+
+    .tile {
+      position: relative;
+      flex: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: var(--c);
+      color: var(--ink);
+      transition: opacity 0.25s ease;
+    }
+    :root[data-theme="dark"] .tile { background: var(--cd); color: var(--ink-d); }
+
+    /* Tiny square indicator in corner of tile when cached for instant offline reading */
+    .tile-cached {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 5px;
+      height: 5px;
+      background: currentColor;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .row.has-cache .tile-cached { opacity: 0.75; }
+
+    .copy { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .line { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+    .name {
+      min-width: 0;
+      font-size: 17px;
+      line-height: 22px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tag {
+      flex: none;
+      margin-left: auto;
+      font-size: 12px;
+      line-height: 18px;
+      font-weight: 600;
+      color: var(--label-2);
+    }
+    .row.has-cache .tag { color: var(--accent); }
+    .desc {
+      font-size: 13px;
+      line-height: 18px;
+      color: var(--label-2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .row.is-read .name { color: var(--label-2); }
+    .row.is-read .tile { opacity: 0.4; }
+
+    .footnote {
+      padding: 8px 16px 0;
+      font-size: 13px;
+      line-height: 18px;
+      color: var(--label-2);
+    }
+
+    /* ---------- In-App Instant Reader View (Square Box Type) ---------- */
+    .reader-root {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.26s cubic-bezier(0.32, 0.72, 0, 1);
+      pointer-events: none;
+    }
+    .reader-root.open {
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+    .reader-bar {
+      flex: none;
+      height: calc(48px + env(safe-area-inset-top));
+      padding: env(safe-area-inset-top) 12px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: var(--bar);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: var(--hair) solid var(--separator);
+    }
+    .reader-btn {
+      height: 36px;
+      padding: 0 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--fill);
+    }
+    .reader-btn:active { opacity: 0.6; }
+    .reader-source {
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .reader-issue-tabs {
+      flex: none;
+      display: flex;
+      overflow-x: auto;
+      background: var(--bg);
+      border-bottom: var(--hair) solid var(--separator);
+    }
+    .reader-issue-tabs:empty { display: none; }
+    .issue-tab {
+      flex: 1 0 auto;
+      max-width: 240px;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--label-2);
+      border-right: var(--hair) solid var(--separator);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: left;
+    }
+    .issue-tab.active {
+      background: var(--surface);
+      color: var(--label);
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+    .reader-scroll {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 24px 18px calc(48px + env(safe-area-inset-bottom));
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    .reader-article {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .reader-kicker {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--label-2);
+      margin-bottom: 8px;
+    }
+    .reader-headline {
+      font-size: 26px;
+      line-height: 1.2;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 18px;
+      padding-bottom: 16px;
+      border-bottom: var(--hair) solid var(--separator);
+    }
+    .reader-content {
+      font-size: 17px;
+      line-height: 1.62;
+      color: var(--label);
+      word-break: break-word;
+    }
+    .reader-content p,
+    .reader-content ul,
+    .reader-content ol,
+    .reader-content blockquote {
+      margin-bottom: 16px;
+    }
+    .reader-content h1,
+    .reader-content h2,
+    .reader-content h3,
+    .reader-content h4 {
+      font-size: 19px;
+      line-height: 1.3;
+      font-weight: 700;
+      margin: 26px 0 10px;
+    }
+    .reader-content ul,
+    .reader-content ol {
+      padding-left: 22px;
+      list-style: square;
+    }
+    .reader-content li { margin-bottom: 8px; }
+    .reader-content a {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+    .reader-content img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 16px 0;
+      border: var(--hair) solid var(--separator);
+    }
+    .reader-content blockquote {
+      padding-left: 14px;
+      border-left: 3px solid var(--accent);
+      color: var(--label-2);
+    }
+
+    /* ---------- Bottom bar ---------- */
+    .toolbar {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 30;
+      padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+      background: var(--bar);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      backdrop-filter: saturate(180%) blur(20px);
+      border-top: var(--hair) solid var(--separator);
+    }
+    .toolbar-inner {
+      max-width: 640px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      gap: 8px;
+    }
+    .btn {
+      height: 50px;
+      line-height: 50px;
+      text-align: center;
+      font-size: 17px;
+      font-weight: 600;
+      transition: opacity 0.15s ease;
+    }
+    .btn:active:not(:disabled) { opacity: 0.55; }
+    .btn:disabled { opacity: 0.3; cursor: default; }
+    .btn-secondary { background: var(--fill); color: var(--danger); }
+    .btn-primary { background: var(--accent); color: #FFFFFF; }
+
+    /* ---------- Action sheet ---------- */
+    .sheet-root {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 100;
+      visibility: hidden;
+      transition: visibility 0s linear 0.38s;
+    }
+    .sheet-root.open { visibility: visible; transition-delay: 0s; }
+    .scrim {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--scrim);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .sheet-root.open .scrim { opacity: 1; }
+    .sheet {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transform: translateY(105%);
+      transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .sheet-root.open .sheet { transform: none; }
+    .sheet-group {
+      background: var(--sheet);
+      -webkit-backdrop-filter: saturate(180%) blur(30px);
+      backdrop-filter: saturate(180%) blur(30px);
+    }
+    .sheet-head {
+      padding: 16px;
+      text-align: center;
+      font-size: 13px;
+      line-height: 18px;
+      color: var(--label-2);
+      border-bottom: var(--hair) solid var(--separator);
+    }
+    .sheet-head strong { display: block; font-weight: 600; }
+    .sheet-btn {
+      display: block;
+      width: 100%;
+      line-height: 57px;
+      text-align: center;
+      font-size: 20px;
+      color: var(--accent);
+    }
+    .sheet-btn.destructive { color: var(--danger); }
+    .sheet-btn.cancel { font-weight: 600; }
+    .sheet-btn:active { background: var(--fill); }
+
+    /* ---------- Motion ---------- */
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: none; }
+    }
+    @keyframes bump {
+      0%   { transform: scale(1); }
+      35%  { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation: none !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Compact bar: appears when the large title scrolls out of view -->
+  <div class="navbar" id="navbar" aria-hidden="true">
+    <span class="navbar-title">Today</span>
+    <span class="navbar-count" id="nav-count">0/5</span>
+  </div>
+
+  <div class="page">
+
+    <header class="masthead">
+      <div>
+        <div class="date" id="date-label">Daily briefing</div>
+        <h1 id="large-title">Today</h1>
+      </div>
+
+      <button class="theme-toggle" id="theme-toggle" type="button" role="switch" aria-checked="false" aria-label="Dark mode">
+        <span class="thumb"></span>
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="butt" stroke-linejoin="miter" aria-hidden="true">
+          <rect x="7.5" y="7.5" width="9" height="9"/>
+          <path d="M12 1.5v3.5M12 19v3.5M1.5 12H5M19 12h3.5M4.6 4.6l2.5 2.5M16.9 16.9l2.5 2.5M4.6 19.4l2.5-2.5M16.9 7.1l2.5-2.5"/>
+        </svg>
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="butt" stroke-linejoin="miter" aria-hidden="true">
+          <path d="M11.2 3L5.6 5.6 3 12l2.6 6.4L12 21l6.4-2.6L21 12.8 17 14l-5-2-2-5z"/>
+        </svg>
+      </button>
+    </header>
+
+    <section class="hero" aria-label="Progress today">
+      <div class="hero-top">
+        <div class="hero-count">
+          <span class="hero-num" id="hero-num">0</span><span class="hero-of" id="hero-of">/5</span>
+        </div>
+        <div class="hero-meta">
+          <span class="hero-label">Read today</span>
+          <span class="hero-status" id="hero-status" aria-live="polite">5 to go</span>
+        </div>
+      </div>
+      <div class="hero-bar" id="hero-bar"></div>
+    </section>
+
+    <div class="section-head">
+      <h2 class="section-title">Briefings</h2>
+      <span class="sync-pill" id="sync-status">Ready</span>
+    </div>
+    <ul class="list" id="list"></ul>
+    <p class="footnote">Cached issues open instantly inside Today and work offline. Others warm up and open their website directly.</p>
+
+  </div>
+
+  <!-- Instant In-App Reader (Option 1) -->
+  <aside class="reader-root" id="reader" aria-hidden="true">
+    <div class="reader-bar">
+      <button class="reader-btn" id="reader-back" type="button">← Today</button>
+      <span class="reader-source" id="reader-source">Briefing</span>
+      <a class="reader-btn" id="reader-ext" href="#" target="_blank" rel="noopener">Website ↗</a>
+    </div>
+    <div class="reader-issue-tabs" id="reader-tabs"></div>
+    <div class="reader-scroll" id="reader-scroll">
+      <article class="reader-article">
+        <div class="reader-kicker" id="reader-kicker">TODAY'S EDITION</div>
+        <h1 class="reader-headline" id="reader-headline"></h1>
+        <div class="reader-content" id="reader-content"></div>
+      </article>
+    </div>
+  </aside>
+
+  <!-- Bottom bar -->
+  <div class="toolbar">
+    <div class="toolbar-inner">
+      <button class="btn btn-secondary" id="btn-reset" type="button">Reset today</button>
+      <button class="btn btn-primary" id="btn-all" type="button">Mark all read</button>
+    </div>
+  </div>
+
+  <!-- Confirmation sheet for Reset -->
+  <div class="sheet-root" id="sheet" aria-hidden="true">
+    <div class="scrim" id="scrim"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="sheet-group">
+        <div class="sheet-head">
+          <strong id="sheet-title">Clear today’s progress?</strong>
+          Every briefing goes back to unread.
+        </div>
+        <button class="sheet-btn destructive" id="sheet-confirm" type="button">Reset today</button>
+      </div>
+      <div class="sheet-group">
+        <button class="sheet-btn cancel" id="sheet-cancel" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const $ = (s) => document.querySelector(s);
+
+      /* ---------------------------------------------------------
+         Briefings.
+         - rss: used by live fallback if ./briefings.json is missing.
+         - Any channel without cached issues opens its url directly.
+         --------------------------------------------------------- */
+      const CHANNELS = [
+        {
+          id: 'morning-brew',
+          name: 'Morning Brew',
+          mark: 'MB',
+          tag: 'US & Global',
+          subtitle: 'Global Business, Markets & Tech',
+          url: 'https://www.morningbrew.com/',
+          rss: 'https://feeds.feedburner.com/morningbrew',
+          color: ['#1C1C1E', '#F2F2F7'],
+          ink: ['#FFFFFF', '#1C1C1E']
+        },
+        {
+          id: 'filter-coffee',
+          name: 'The Filter Coffee',
+          mark: 'FC',
+          tag: 'India',
+          subtitle: 'Indian Tech, Startups & Venture',
+          url: 'https://filtercoffee.substack.com/',
+          rss: 'https://filtercoffee.substack.com/feed',
+          color: ['#D4AF37', '#E6BE45'],
+          ink: ['#1C1C1E', '#1C1C1E']
+        },
+        {
+          id: 'the-ken',
+          name: 'The Ken',
+          mark: 'TK',
+          tag: 'Analysis',
+          subtitle: 'Executive Business Journalism',
+          url: 'https://the-ken.com/',
+          rss: 'https://the-ken.com/feed/',
+          color: ['#E74C3C', '#FF6B5E'],
+          ink: ['#FFFFFF', '#1C1C1E']
+        },
+        {
+          id: 'finimize',
+          name: 'Finimize',
+          mark: 'FN',
+          tag: 'Markets',
+          subtitle: 'Global Investing & Market Briefs',
+          url: 'https://finimize.com/',
+          rss: null,
+          color: ['#0E9F6E', '#34D399'],
+          ink: ['#FFFFFF', '#1C1C1E']
+        },
+        {
+          id: 'rundown-ai',
+          name: 'The Rundown AI',
+          mark: 'RA',
+          tag: 'AI',
+          subtitle: 'Daily AI Developments & Articles',
+          url: 'https://www.therundown.ai/articles',
+          rss: 'https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml',
+          color: ['#8B5CF6', '#A78BFA'],
+          ink: ['#FFFFFF', '#1C1C1E']
+        }
+      ];
+
+      const STORE = 'sharp_briefing_';
+      const CACHE_KEY = 'today_issues_cache_v1';
+      const THEME_KEY = 'today_theme';
+      const root = document.documentElement;
+      const total = CHANNELS.length;
+
+      const el = {
+        list: $('#list'), bar: $('#hero-bar'), num: $('#hero-num'), of: $('#hero-of'),
+        status: $('#hero-status'), navbar: $('#navbar'), navCount: $('#nav-count'),
+        title: $('#large-title'), date: $('#date-label'), syncStatus: $('#sync-status'),
+        all: $('#btn-all'), reset: $('#btn-reset'),
+        theme: $('#theme-toggle'), themeMeta: $('#theme-meta'),
+        sheet: $('#sheet'), scrim: $('#scrim'), confirm: $('#sheet-confirm'), cancel: $('#sheet-cancel'),
+        reader: $('#reader'), readerBack: $('#reader-back'), readerSource: $('#reader-source'),
+        readerExt: $('#reader-ext'), readerTabs: $('#reader-tabs'), readerScroll: $('#reader-scroll'),
+        readerKicker: $('#reader-kicker'), readerHeadline: $('#reader-headline'), readerContent: $('#reader-content')
+      };
+
+      /* ---------- Storage: read state + offline issue cache ---------- */
+      const pad = (n) => String(n).padStart(2, '0');
+      const dayKey = () => {
+        const d = new Date();
+        return STORE + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+      };
+
+      let key = dayKey();
+      let read = loadRead();
+      let issueCache = loadIssueCache();
+      let lastCount = null;
+
+      function loadRead() {
+        try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { return {}; }
+      }
+      function saveRead() {
+        try {
+          if (Object.keys(read).length) localStorage.setItem(key, JSON.stringify(read));
+          else localStorage.removeItem(key);
+        } catch (e) {}
+      }
+
+      function loadIssueCache() {
+        try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}') || {}; } catch (e) { return {}; }
+      }
+      function saveIssueCache() {
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(issueCache)); } catch (e) {}
+      }
+
+      /* ---------- Option 2 Warm-Up: pre-warm URL on finger touch ---------- */
+      const warmedUrls = {};
+      function warmUpUrl(url) {
+        if (!url || warmedUrls[url]) return;
+        warmedUrls[url] = true;
+        try {
+          const link = document.createElement('link');
+          link.rel = 'prerender';
+          link.href = url;
+          document.head.appendChild(link);
+        } catch (e) {}
+      }
+
+      /* ---------- Build the list and the progress blocks ---------- */
+      const refs = {};
+      el.bar.style.setProperty('--n', total);
+      el.of.textContent = '/' + total;
+
+      CHANNELS.forEach((ch, i) => {
+        const li = document.createElement('li');
+        li.className = 'row';
+        li.style.setProperty('--i', i);
+        li.style.setProperty('--c', ch.color[0]);
+        li.style.setProperty('--cd', ch.color[1]);
+        li.style.setProperty('--ink', ch.ink[0]);
+        li.style.setProperty('--ink-d', ch.ink[1]);
+        li.innerHTML =
+          '<a class="row-main">' +
+            '<span class="tile" aria-hidden="true"><span class="tile-mark"></span><span class="tile-cached"></span></span>' +
+            '<span class="copy">' +
+              '<span class="line"><span class="name"></span><span class="tag"></span></span>' +
+              '<span class="desc"></span>' +
+            '</span>' +
+          '</a>';
+
+        const link = li.querySelector('.row-main');
+        const tagEl = li.querySelector('.tag');
+        const descEl = li.querySelector('.desc');
+        link.href = ch.url;
+        li.querySelector('.tile-mark').textContent = ch.mark;
+        li.querySelector('.name').textContent = ch.name;
+        tagEl.textContent = ch.tag;
+        descEl.textContent = ch.subtitle;
+
+        /* Warm up external connection on touchstart if no cached issue exists */
+        link.addEventListener('touchstart', () => {
+          if (!hasUsableIssue(ch.id)) warmUpUrl(ch.url);
+        }, { passive: true });
+        link.addEventListener('mouseenter', () => {
+          if (!hasUsableIssue(ch.id)) warmUpUrl(ch.url);
+        });
+
+        /* Tap handler:
+           - If cached issue exists -> open Instant Reader inside Today (0ms, never leave app).
+           - Otherwise -> let native <a href> open website immediately. */
+        link.addEventListener('click', (e) => {
+          read[ch.id] = true;
+          saveRead();
+          render();
+
+          if (hasUsableIssue(ch.id)) {
+            e.preventDefault();
+            openReader(ch);
+          }
+        });
+
+        const seg = document.createElement('span');
+        seg.style.setProperty('--cd', ch.color[1]);
+        el.bar.appendChild(seg);
+
+        el.list.appendChild(li);
+        refs[ch.id] = { row: li, link: link, seg: seg, tag: tagEl, desc: descEl };
+      });
+
+      function hasUsableIssue(id) {
+        const entry = issueCache[id];
+        return Boolean(entry && Array.isArray(entry.items) && entry.items.length > 0 && entry.items[0].content);
+      }
+
+      function render() {
+        let n = 0;
+        let cachedCount = 0;
+        CHANNELS.forEach((ch) => {
+          const on = !!read[ch.id];
+          const cached = hasUsableIssue(ch.id);
+          if (on) n++;
+          if (cached) cachedCount++;
+
+          const r = refs[ch.id];
+          r.row.classList.toggle('is-read', on);
+          r.row.classList.toggle('has-cache', cached);
+          r.seg.classList.toggle('on', on);
+
+          if (cached) {
+            const latest = issueCache[ch.id].items[0];
+            r.desc.textContent = latest.title || ch.subtitle;
+            r.tag.textContent = 'Instant';
+          } else {
+            r.desc.textContent = ch.subtitle;
+            r.tag.textContent = ch.tag;
+          }
+
+          r.link.setAttribute('aria-label', ch.name + ', ' + ch.subtitle + ', ' + (on ? 'read' : 'unread'));
+        });
+
+        el.num.textContent = n;
+        el.navCount.textContent = n + '/' + total;
+        el.status.textContent = n === total ? 'All caught up' : (total - n) + ' to go';
+        el.all.disabled = n === total;
+        el.all.textContent = n === total ? 'All read' : 'Mark all read';
+        el.reset.disabled = n === 0;
+
+        if (cachedCount > 0) {
+          el.syncStatus.textContent = cachedCount + ' instant · offline ready';
+        }
+
+        if (lastCount !== null && lastCount !== n) {
+          el.num.classList.remove('bump');
+          void el.num.offsetWidth;
+          el.num.classList.add('bump');
+        }
+        lastCount = n;
+      }
+
+      /* ---------- Instant In-App Reader ---------- */
+      function openReader(ch) {
+        const entry = issueCache[ch.id];
+        if (!entry || !entry.items || !entry.items.length) return;
+
+        el.readerSource.textContent = ch.name;
+        el.readerTabs.innerHTML = '';
+
+        if (entry.items.length > 1) {
+          entry.items.slice(0, 4).forEach((item, idx) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'issue-tab' + (idx === 0 ? ' active' : '');
+            btn.textContent = item.title || ('Issue ' + (idx + 1));
+            btn.addEventListener('click', () => {
+              el.readerTabs.querySelectorAll('.issue-tab').forEach((b, i) => b.classList.toggle('active', i === idx));
+              renderReaderIssue(ch, item);
+            });
+            el.readerTabs.appendChild(btn);
+          });
+        }
+
+        renderReaderIssue(ch, entry.items[0]);
+        el.reader.classList.add('open');
+        el.reader.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('reader-lock');
+      }
+
+      function renderReaderIssue(ch, item) {
+        el.readerScroll.scrollTop = 0;
+        el.readerExt.href = item.link || ch.url;
+        const pub = item.pubDate ? new Date(item.pubDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Latest Issue';
+        el.readerKicker.textContent = ch.name + ' · ' + pub;
+        el.readerHeadline.textContent = item.title || ch.name;
+        el.readerContent.innerHTML = sanitizeHtml(item.content || '');
+      }
+
+      function closeReader() {
+        el.reader.classList.remove('open');
+        el.reader.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('reader-lock');
+      }
+
+      el.readerBack.addEventListener('click', closeReader);
+
+      function sanitizeHtml(raw) {
+        const doc = new DOMParser().parseFromString(raw, 'text/html');
+        doc.querySelectorAll('script, style, iframe, object, embed, form, input, button').forEach((n) => n.remove());
+        doc.querySelectorAll('*').forEach((node) => {
+          [...node.attributes].forEach((attr) => {
+            if (/^on/i.test(attr.name) || attr.name === 'style') node.removeAttribute(attr.name);
+          });
+          if (node.tagName === 'A') {
+            node.setAttribute('target', '_blank');
+            node.setAttribute('rel', 'noopener');
+          }
+        });
+        return doc.body.innerHTML;
+      }
+
+      /* ---------- Background Sync: 1) ./briefings.json -> 2) Live RSS Fallback ---------- */
+      async function syncBriefings() {
+        /* Step 1: Try fetching ./briefings.json generated by the morning scheduled job */
+        try {
+          const res = await fetch('./briefings.json?t=' + Date.now(), { cache: 'no-store' });
+          if (res.ok) {
+            const payload = await res.json();
+            if (payload && payload.channels) {
+              issueCache = payload.channels;
+              saveIssueCache();
+              render();
+              return;
+            }
+          }
+        } catch (e) {}
+
+        /* Step 2: Graceful fallback if ./briefings.json isn't deployed yet */
+        await Promise.allSettled(CHANNELS.map(async (ch) => {
+          if (!ch.rss) return;
+          try {
+            const api = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(ch.rss);
+            const res = await fetch(api);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data && data.status === 'ok' && Array.isArray(data.items) && data.items.length > 0) {
+              const valid = data.items
+                .map((it) => ({
+                  title: it.title || ch.name,
+                  link: it.link || ch.url,
+                  pubDate: it.pubDate || '',
+                  content: (it.content && it.content.length > 140) ? it.content : (it.description && it.description.length > 140 ? it.description : '')
+                }))
+                .filter((it) => it.content.length > 140);
+
+              if (valid.length > 0) {
+                issueCache[ch.id] = { updatedAt: new Date().toISOString(), items: valid.slice(0, 4) };
+              }
+            }
+          } catch (e) {}
+        }));
+
+        saveIssueCache();
+        render();
+      }
+
+      el.all.addEventListener('click', () => {
+        CHANNELS.forEach((ch) => { read[ch.id] = true; });
+        saveRead(); render();
+      });
+
+      /* ---------- Reset, confirmed in a sheet ---------- */
+      let lastFocus = null;
+      function openSheet() {
+        lastFocus = document.activeElement;
+        el.sheet.classList.add('open');
+        el.sheet.setAttribute('aria-hidden', 'false');
+        requestAnimationFrame(() => el.cancel.focus({ preventScroll: true }));
+      }
+      function closeSheet() {
+        el.sheet.classList.remove('open');
+        el.sheet.setAttribute('aria-hidden', 'true');
+        if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
+      }
+      el.reset.addEventListener('click', openSheet);
+      el.cancel.addEventListener('click', closeSheet);
+      el.scrim.addEventListener('click', closeSheet);
+      el.confirm.addEventListener('click', () => { read = {}; saveRead(); render(); closeSheet(); });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          if (el.sheet.classList.contains('open')) closeSheet();
+          else if (el.reader.classList.contains('open')) closeReader();
+        }
+      });
+
+      /* ---------- Theme: light by default, choice is remembered ---------- */
+      function applyTheme(t, animate) {
+        if (animate) {
+          root.classList.add('switching');
+          setTimeout(() => root.classList.remove('switching'), 350);
+        }
+        root.setAttribute('data-theme', t);
+        el.theme.setAttribute('aria-checked', String(t === 'dark'));
+        el.themeMeta.setAttribute('content', t === 'dark' ? '#000000' : '#FFFFFF');
+      }
+      el.theme.addEventListener('click', () => {
+        const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        applyTheme(next, true);
+        try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+      });
+
+      /* ---------- Compact bar when the large title scrolls away ---------- */
+      if ('IntersectionObserver' in window) {
+        const navH = Math.max(44, el.navbar.offsetHeight);
+        new IntersectionObserver((entries) => {
+          const e = entries[0];
+          el.navbar.classList.toggle('show', !e.isIntersecting && e.boundingClientRect.top < 0);
+        }, { rootMargin: '-' + navH + 'px 0px 0px 0px' }).observe(el.title);
+      }
+
+      /* ---------- Date, and keeping "today" correct ---------- */
+      function setDate() {
+        el.date.textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+      }
+      function sync() {
+        key = dayKey();
+        read = loadRead();
+        setDate();
+        render();
+      }
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
+      window.addEventListener('pageshow', sync);
+
+      /* ---------- Home Screen icon: five bars, one per briefing ---------- */
+      function makeIcon() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 180;
+        canvas.height = 180;
+        const ctx = canvas.getContext && canvas.getContext('2d');
+        if (!ctx) return;
+
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, 180, 180);
+
+        const barH = 14, gap = 8, w = 100, x = 40;
+        let y = (180 - (total * barH + (total - 1) * gap)) / 2;
+        CHANNELS.forEach((ch) => {
+          ctx.fillStyle = ch.color[1];
+          ctx.fillRect(x, y, w, barH);
+          y += barH + gap;
+        });
+
+        const url = canvas.toDataURL('image/png');
+        $('#apple-icon').href = url;
+        $('#favicon').href = url;
+      }
+
+      /* ---------- Go ---------- */
+      document.addEventListener('touchstart', function () {}, { passive: true });
+      applyTheme(root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light', false);
+      setDate();
+      render();
+      makeIcon();
+      syncBriefings();
+      requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('boot')));
+    })();
+  </script>
+</body>
+</html>
